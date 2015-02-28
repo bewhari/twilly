@@ -23,12 +23,20 @@ class TwilioController < ApplicationController
 
     @city = params[:FromCity]
     @state = params[:FromState]
-    render 'receive_sms.xml.erb', :content_type => 'text/xml'
 
-    # twiml = Twilio::TwiML::Response.new do |r|
-    #   r.Message "Hey there! I got a text from you."
-    # end
-    # twiml.text
-
+    if @message == "Start"
+      twiml = Twilio::TwiML::Response.new do |r|
+        r.Message "Game requested."
+      end
+      twiml.text
+    else
+      twiml = Twilio::TwiML::Response.new do |r|
+        r.Message "I don't understand."
+      end
+      twiml.text
+    end
   end
+
+
+
 end
