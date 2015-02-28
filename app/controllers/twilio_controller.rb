@@ -24,17 +24,10 @@ class TwilioController < ApplicationController
     @city = params[:FromCity]
     @state = params[:FromState]
 
-    if @message == "Start"
-      twiml = Twilio::TwiML::Response.new do |r|
-        r.Message "Game requested."
-      end
-      twiml.text
-    else
-      twiml = Twilio::TwiML::Response.new do |r|
-        r.Message "I don't understand."
-      end
-      twiml.text
+    twiml = Twilio::TwiML::Response.new do |r|
+      r.Message "I don't understand."
     end
+    twiml.text
   end
 
 
