@@ -23,7 +23,9 @@ class TwilioController < ApplicationController
     #@city = params[:FromCity]
     #@state = params[:FromState]
 
-    @reply_message = Player.new.create_player(@message_body, @from_number)
+    if Player.where(phone_num: @from_number).empty?
+      @player = Player.create_player(@message_body, @from_number)
+    end
 
 =begin
     if @message_body == "Start"
@@ -44,7 +46,7 @@ class TwilioController < ApplicationController
 
 
 
-
+    @reply_message = "Text received!"
     render 'receive_sms.xml.erb', :content_type => 'text/xml'
 
     #twiml = Twilio::TwiML::Response.new do |r|

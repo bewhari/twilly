@@ -3,7 +3,7 @@ class CreatePlayers < ActiveRecord::Migration
     create_table :players do |t|
       t.string :name
       t.string :phone_num
-
+      t.belongs_to :game, index:true
 
       t.timestamps null: false
     end
