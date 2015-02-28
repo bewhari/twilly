@@ -18,11 +18,13 @@ class TwilioController < ApplicationController
   end
 
   def receive_sms
-    message_body = params["Body"]
-    from_number = params["From"]
+    message_body = params[:Body]
+    from_number = params[:From]
 
-    SMSLogger.log_text_message from_number, message_body
+    twiml = Twilio::TwiML::Response.new do |r|
+      r.Message "Hey there! I got a text from you."
+    end
+    twiml.text
 
-    send_sms
   end
 end
