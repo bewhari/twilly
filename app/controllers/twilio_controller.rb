@@ -18,13 +18,17 @@ class TwilioController < ApplicationController
   end
 
   def receive_sms
-    message_body = params[:Body]
-    from_number = params[:From]
+    @message_body = params[:Body]
+    @from_number = params[:From]
 
-    twiml = Twilio::TwiML::Response.new do |r|
-      r.Message "Hey there! I got a text from you."
-    end
-    twiml.text
+    @city = params[:FromCity]
+    @state = params[:FromState]
+    render 'receive_sms.xml.erb', :content_type => 'text/xml'
+
+    # twiml = Twilio::TwiML::Response.new do |r|
+    #   r.Message "Hey there! I got a text from you."
+    # end
+    # twiml.text
 
   end
 end

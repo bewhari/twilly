@@ -6,8 +6,7 @@ Rails.application.routes.draw do
   # You can have the root of your site routed with "root"
   root :to => 'twilio#index'
   post 'send_sms' => 'twilio#send_sms'
-  post 'receive_sms' => 'twilio#receive_sms'
-
+  match 'receive_sms' => 'twilio#receive_sms', via: [:get, :post]
 
   # Example of regular route:
   #   get 'products/:id' => 'catalog#view'
