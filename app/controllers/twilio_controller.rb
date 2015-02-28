@@ -23,6 +23,9 @@ class TwilioController < ApplicationController
     #@city = params[:FromCity]
     #@state = params[:FromState]
 
+    @reply_message = Player.new.create_player(@message_body, @from_number)
+
+=begin
     if @message_body == "Start"
       prompt
       @name = nil
@@ -34,14 +37,15 @@ class TwilioController < ApplicationController
         @reply_message = "Parse function! Woohoo!"
       end
     end
+=end
+
+
+
+
+
+
 
     render 'receive_sms.xml.erb', :content_type => 'text/xml'
-
-
-
-
-
-
 
     #twiml = Twilio::TwiML::Response.new do |r|
     #  r.Message "I don't understand."
@@ -49,14 +53,7 @@ class TwilioController < ApplicationController
     #twiml.text
   end
 
-  def prompt
-    @reply_message = "What's your name?"
-    #render 'receive_sms.xml.erb', :content_type => 'text/xml'
-  end
 
-  def parse
-    @reply_message = "Parse function! Woohoo!"
-    render 'receive_sms.xml.erb', :content_type => 'text/xml'
-  end
+
 
 end
