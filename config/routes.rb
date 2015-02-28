@@ -2,8 +2,12 @@ Rails.application.routes.draw do
   # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".
 
+
   # You can have the root of your site routed with "root"
-  root 'application#hello'
+  root :to => 'twilio#index'
+  post 'send_sms' => 'twilio#send_sms'
+  post 'receive_sms' => 'twilio#receive_sms'
+
 
   # Example of regular route:
   #   get 'products/:id' => 'catalog#view'
