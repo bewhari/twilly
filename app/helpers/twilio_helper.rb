@@ -6,6 +6,10 @@ module TwilioHelper
     city = params[:FromCity]
     state = params[:FromState]
 
+    if %w{ exit quit }.include?(message.to_s.downcase)
+      return
+    end
+
     player = Player.where(phone_num: from).first
     reply_message = ""
 
@@ -15,68 +19,124 @@ module TwilioHelper
       player = Player.create_player(message, from)
 
       reply_message = "Hello #{message}! Welcome to Text Games powered by Twilio. "
-    elsif player.attributes["game_id"] == nil
-      reply_message = "Welcome back #{player.attributes["name"]}! "
+    elsif player.attributes['game_id'] == nil
+      reply_message = "Welcome back #{player.attributes['name']}!"
     end
 
-    player_game_id = player.attributes["game_id"]
+    player_game_id = player.attributes['game_id']
 
     if player_game_id == nil
-      reply_message += "What game would you like to play? "
+      reply_message += 'What game would you like to play?'
 
       player.set_game_id(0)
 
+      send_message(reply_message, from)
+
     elsif player_game_id == 0  #player replied with game type
-      if ["connectfour", "connect4"].include?(message.to_s.downcase)
-        reply_message = "ConnectFour? Sweet! "
-        game = Game.where(sel: 1, status: 1).first
-        if game == nil
-          game = Game.create_game(1, nil, 1, 1)
-          player.set_game_id(game.attributes["id"])
-          player.set_player_num(1)
-          reply_message += "Game created! Waiting for opponent..."
-        else
-          player.set_game_id(game.attributes["id"])
-          player.set_player_num(2)
-          game.set_status(2)
-          reply_message += "Joined game! Opponent's move. "
-          other_player = Player.where(game_id: game.attributes["id"]).first
-          other_player_message = "Opponent found! Game started. Your move. "
-          send_message(other_player_message, other_player.attributes["phone_num"])
-        end
-
-
-
-
+      sel = nil
+      if %w{tictactoe tic-tac-toe}.include?(message.to_s.downcase)
+        reply_message = "Tic-Tac-Toe? Classic!"
+        sel = 1
+      elsif %w{connectfour connect4}.include?(message.to_s.downcase)
+        reply_message = "ConnectFour? Sweet!"
+        sel = 2
       else
         reply_message = "Sorry we don't support that game. Please try again."
       end
 
+      if sel != nil
+        game = Game.where(sel: sel, status: 1).first
+        if game == nil
+          game = Game.new(sel: sel, data: '0'*42, turn: 1, status: 1)
+          game.save
+          player.set_game_id(game.attributes['id'])
+          player.set_player_num(1)
+          reply_message += "Game created! Waiting for opponent..."
+        else
+          player.set_game_id(game.attributes['id'])
+          player.set_player_num(2)
+          game.set_status(2)
+          other_player = Player.where(game_id: game.attributes['id']).first
+          other_player_message = "Opponent found! You are playing against #{player.attributes['name']}. Your move."
+          send_message(other_player_message, other_player.attributes['phone_num'])
+          reply_message += "Joined game! You are playing against #{other_player.attributes['name']}. Opponent's move."
+        end
+      end
+
+      send_message(reply_message, from)
+
+
     else #player is in a game
       game = Game.where(id: player_game_id).first
+      game_id = game.attributes["id"]
       game_status = game.attributes["status"]
       game_turn = game.attributes["turn"]
+
+      other_player = Player.where(game_id: game_id, num: (player.attributes['num']%2+1)).first
+      other_player_phone_num = other_player.attributes['phone_num']
 
       if game_status == 1
         reply_message = "Still waiting for an opponent... "
       else
         if game_turn == player.attributes["num"]
           game.update_board(message)
-          game.set_turn(game_turn == 1 ? 2 : 1)
 
-          send_message(reply_message,
-                       Player.where(game_id: game.attributes["id"],
-                                    num: game.attributes["turn"]).first.attributes["phone_num"])
+          state = game.get_state
+          case state
+            when 'ii'
+              reply_message = 'Invalid input'
+              send_message(reply_message, from)
+            when 'im'
+              reply_message = 'Invalid move'
+              send_message(reply_message, from)
+            when 'draw'
+              display_game(game)
+
+              reply_message = 'The game is a draw!'
+              send_message(reply_message, from)
+              send_message(reply_message, other_player_phone_num)
+
+              clear_players(player, other_player)
+
+              #player.set_game_id(nil)
+              #player.set_player_num(0)
+              #other_player.set_game_id(nil)
+              #other_player.set_player_num(0)
+            when 1..2
+              display_game(game)
+
+              win_message = 'You win! :)'
+              lose_message = 'You lose... :('
+              if player.attributes['num'] == state
+                send_message(win_message, from)
+                send_message(lose_message, other_player_phone_num)
+              else
+                send_message(lose_message, from)
+                send_message(win_message, other_player_phone_num)
+              end
+
+              clear_players(player, other_player)
+
+              #player.set_game_id(nil)
+              #player.set_player_num(0)
+              #other_player.set_game_id(nil)
+              #other_player.set_player_num(0)
+            else
+              # continue play
+              display_game(game)
+
+              prompt_message = "It's your turn."
+              #send_message(reply_message, from)
+              #send_message(reply_message, other_player_phone_num)
+              send_message(prompt_message, other_player_phone_num)
+          end
 
         else
-          reply_message = "Not your turn. "
+          reply_message = "It's not your turn!"
         end
       end
     end
 
-
-
-    send_message(reply_message, from)
   end
 
 
@@ -91,6 +151,70 @@ module TwilioHelper
       :from => "+12246332067",
       :body => "#{message}"
     })
+  end
+
+  def display_game(game)
+    data = game.attributes['data']
+    message = "ConnectFour\n"
+
+    case game.attributes['sel']
+      when 1 # tictactoe
+        max_per_line = 3
+        empty_space = "\u25FB"                  # white square
+        player_one_space = "\u2B55"#"\xF0\x9F\x94\xB5"
+        player_two_space = "\u274C"#"\xF0\x9F\x94\xB4"
+        row_label = ["\x31", "\x32", "\x33"]
+        col_label = ["\x31", "\x32", "\x33"]
+
+      when 2 # connectfour
+        max_per_line = 7
+        empty_space = "\u26AA"                  # white circle
+        player_one_space = "\xF0\x9F\x94\xB5"   # blue circle
+        player_two_space = "\xF0\x9F\x94\xB4"   # red circle
+        row_label = ''
+        col_label = ["\x31", "\x32", "\x33", "\x34", "\x35", "\x36", "\x37"]
+      else
+        max_per_line = 10
+        empty_space = ' '
+        player_one_space = '1'
+        player_two_space = '2'
+    end
+
+    count = 0
+    for i in 0..data.length-1
+
+      if data[i] == '0'
+        message += empty_space
+      elsif data[i] == '1'
+        message += player_one_space
+      else
+        message += player_two_space
+      end
+
+      count += 1
+
+      if count == max_per_line
+        message += row_label[i/max_per_line] + "\xE2\x83\xA3" + "\n"
+        count = 0
+      end
+
+    end
+
+    for i in 0..max_per_line-1
+      message += col_label[i]+"\xE2\x83\xA3"
+    end
+
+
+    Player.where(game_id: game.attributes['id']).find_each do |player|
+      send_message(message.encode('utf-8'), player.attributes['phone_num'])
+    end
+  end
+
+  def clear_players(player, other_player)
+    player.set_game_id(nil)
+    player.set_player_num(0)
+    other_player.set_game_id(nil)
+    other_player.set_player_num(0)
   end
 
 end
