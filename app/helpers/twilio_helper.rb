@@ -1,20 +1,16 @@
 module TwilioHelper
 
+=begin
   def respond(params)
     message = params[:Body]
     from = params[:From]
     city = params[:FromCity]
     state = params[:FromState]
 
-    if %w{ exit quit }.include?(message.to_s.downcase)
-      return
-    end
-
     player = Player.where(phone_num: from).first
     reply_message = ""
 
     if player == nil
-
       # create player
       player = Player.create_player(message, from)
 
@@ -99,7 +95,7 @@ module TwilioHelper
               send_message(reply_message, from)
               send_message(reply_message, other_player_phone_num)
 
-              clear_players(game, player, other_player)
+              clear_game(game, player, other_player)
 
               #player.set_game_id(nil)
               #player.set_player_num(0)
@@ -118,7 +114,7 @@ module TwilioHelper
                 send_message(win_message, other_player_phone_num)
               end
 
-              clear_players(game, player, other_player)
+              clear_game(game, player, other_player)
 
               #player.set_game_id(nil)
               #player.set_player_num(0)
@@ -143,6 +139,7 @@ module TwilioHelper
     end
 
   end
+=end
 
 
   def send_message(message, to)
@@ -158,13 +155,23 @@ module TwilioHelper
     })
   end
 
-  def display_game(game)
+  def prompt(player)
+    reply_message = "What game would you like to play?\n"
+    reply_message += "\t 1. Tic-Tac-Toe\n"
+    reply_message += "\t 2. Connect Four\n"
+
+    player.set_game_id(0)
+
+    send_message(reply_message, player.attributes['phone_num'])
+  end
+
+  def display_game(game, player)
     data = game.attributes['data']
     message = ''
 
     case game.attributes['sel']
       when 1 # tictactoe
-        message += "Tic-tac-toe\n"
+        message += "Tic-Tac-Toe\n"
         max_per_line = 3
         empty_space = "\u25FB"                  # white square
         player_one_space = "\u2B55"#"\xF0\x9F\x94\xB5"
@@ -177,7 +184,7 @@ module TwilioHelper
                      "\x33\xE2\x83\xA3"]
 
       when 2 # connectfour
-        message += "ConnectFour\n"
+        message += "Connect Four\n"
         max_per_line = 7
         empty_space = "\u26AA"                  # white circle
         player_one_space = "\xF0\x9F\x94\xB5"   # blue circle
@@ -228,19 +235,25 @@ module TwilioHelper
       message += col_label[i]
     end
 
-
-    Player.where(game_id: game.attributes['id']).find_each do |player|
+    if player == nil
+      Player.where(game_id: game.attributes['id']).find_each do |player|
+        send_message(message.encode('utf-8'), player.attributes['phone_num'])
+      end
+    else # a player is passed
       send_message(message.encode('utf-8'), player.attributes['phone_num'])
     end
   end
 
-  def clear_players(game, player, other_player)
-    player.set_game_id(nil)
-    player.set_player_num(0)
-    other_player.set_game_id(nil)
-    other_player.set_player_num(0)
+  def clear_game(game, player, other_player)
+    clear_player(player)
+    clear_player(other_player)
 
     game.destroy
+  end
+
+  def clear_player(player)
+    player.set_game_id(nil)
+    player.set_player_num(0)
   end
 
 end
