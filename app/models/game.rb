@@ -1,13 +1,26 @@
 class Game < ActiveRecord::Base
   has_many :players
 
-  def self.create_game(type, board, turn, status)
-    @game = Game.new(type: type, board: board, turn: turn, status: true)
+
+
+  def self.create_game(sel, board, turn, status)
+
+
+
+
+    @game = Game.new(sel: sel, board: board, turn: turn, status: status)
     if @game.save
-      return "New game created!"
-    else
-      return "Failed to create game :("
+      return @game
     end
+  end
+
+
+  def set_status(status)
+    self.update_attribute("status", status)
+  end
+
+  def set_turn(turn)
+    self.update_attribute("turn", turn)
   end
 
 end

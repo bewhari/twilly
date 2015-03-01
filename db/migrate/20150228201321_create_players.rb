@@ -4,6 +4,7 @@ class CreatePlayers < ActiveRecord::Migration
       t.string :name
       t.string :phone_num
       t.belongs_to :game, index:true
+      t.integer :num
 
       t.timestamps null: false
     end

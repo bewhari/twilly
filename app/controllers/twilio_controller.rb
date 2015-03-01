@@ -1,5 +1,7 @@
 class TwilioController < ApplicationController
 
+  include TwilioHelper
+
   def send_sms
     message = params[:message]
     number = params[:number]
@@ -18,14 +20,6 @@ class TwilioController < ApplicationController
   end
 
   def receive_sms
-    @message_body = params[:Body]
-    @from_number = params[:From]
-    #@city = params[:FromCity]
-    #@state = params[:FromState]
-
-    if Player.where(phone_num: @from_number).empty?
-      @player = Player.create_player(@message_body, @from_number)
-    end
 
 =begin
     if @message_body == "Start"
@@ -41,13 +35,9 @@ class TwilioController < ApplicationController
     end
 =end
 
+    respond(params)
 
-
-
-
-
-    @reply_message = "Text received!"
-    render 'receive_sms.xml.erb', :content_type => 'text/xml'
+    #render 'receive_sms.xml.erb', :content_type => 'text/xml'
 
     #twiml = Twilio::TwiML::Response.new do |r|
     #  r.Message "I don't understand."
