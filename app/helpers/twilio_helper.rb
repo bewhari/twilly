@@ -18,9 +18,9 @@ module TwilioHelper
       # create player
       player = Player.create_player(message, from)
 
-      reply_message = "Hello #{message}! Welcome to Text Games powered by Twilio. "
+      reply_message = "Hello #{message}! Welcome to Twilly powered by Twilio. "
     elsif player.attributes['game_id'] == nil
-      reply_message = "Welcome back #{player.attributes['name']}!"
+      reply_message = "Welcome back #{player.attributes['name']}! "
     end
 
     player_game_id = player.attributes['game_id']
@@ -35,11 +35,13 @@ module TwilioHelper
     elsif player_game_id == 0  #player replied with game type
       sel = nil
       if %w{tictactoe tic-tac-toe}.include?(message.to_s.downcase)
-        reply_message = "Tic-Tac-Toe? Classic!"
+        reply_message = "Tic-Tac-Toe? Classic! "
         sel = 1
+        data = '0' * 9
       elsif %w{connectfour connect4}.include?(message.to_s.downcase)
-        reply_message = "ConnectFour? Sweet!"
+        reply_message = "ConnectFour? Sweet! "
         sel = 2
+        data = '0' * 42
       else
         reply_message = "Sorry we don't support that game. Please try again."
       end
@@ -47,7 +49,7 @@ module TwilioHelper
       if sel != nil
         game = Game.where(sel: sel, status: 1).first
         if game == nil
-          game = Game.new(sel: sel, data: '0'*42, turn: 1, status: 1)
+          game = Game.new(sel: sel, data: data, turn: 1, status: 1)
           game.save
           player.set_game_id(game.attributes['id'])
           player.set_player_num(1)
@@ -72,12 +74,13 @@ module TwilioHelper
       game_status = game.attributes["status"]
       game_turn = game.attributes["turn"]
 
-      other_player = Player.where(game_id: game_id, num: (player.attributes['num']%2+1)).first
-      other_player_phone_num = other_player.attributes['phone_num']
-
       if game_status == 1
         reply_message = "Still waiting for an opponent... "
+        send_message(reply_message, from)
       else
+        other_player = Player.where(game_id: game_id, num: (player.attributes['num']%2+1)).first
+        other_player_phone_num = other_player.attributes['phone_num']
+
         if game_turn == player.attributes["num"]
           game.update_board(message)
 
@@ -96,7 +99,7 @@ module TwilioHelper
               send_message(reply_message, from)
               send_message(reply_message, other_player_phone_num)
 
-              clear_players(player, other_player)
+              clear_players(game, player, other_player)
 
               #player.set_game_id(nil)
               #player.set_player_num(0)
@@ -115,7 +118,7 @@ module TwilioHelper
                 send_message(win_message, other_player_phone_num)
               end
 
-              clear_players(player, other_player)
+              clear_players(game, player, other_player)
 
               #player.set_game_id(nil)
               #player.set_player_num(0)
@@ -133,8 +136,10 @@ module TwilioHelper
 
         else
           reply_message = "It's not your turn!"
+          send_message(reply_message, from)
         end
       end
+
     end
 
   end
@@ -155,24 +160,36 @@ module TwilioHelper
 
   def display_game(game)
     data = game.attributes['data']
-    message = "ConnectFour\n"
+    message = ''
 
     case game.attributes['sel']
       when 1 # tictactoe
+        message += "Tic-tac-toe\n"
         max_per_line = 3
         empty_space = "\u25FB"                  # white square
         player_one_space = "\u2B55"#"\xF0\x9F\x94\xB5"
         player_two_space = "\u274C"#"\xF0\x9F\x94\xB4"
-        row_label = ["\x31", "\x32", "\x33"]
-        col_label = ["\x31", "\x32", "\x33"]
+        row_label = ["\x31\xE2\x83\xA3",
+                     "\x32\xE2\x83\xA3",
+                     "\x33\xE2\x83\xA3"]
+        col_label = ["\x31\xE2\x83\xA3",
+                     "\x32\xE2\x83\xA3",
+                     "\x33\xE2\x83\xA3"]
 
       when 2 # connectfour
+        message += "ConnectFour\n"
         max_per_line = 7
         empty_space = "\u26AA"                  # white circle
         player_one_space = "\xF0\x9F\x94\xB5"   # blue circle
         player_two_space = "\xF0\x9F\x94\xB4"   # red circle
         row_label = ''
-        col_label = ["\x31", "\x32", "\x33", "\x34", "\x35", "\x36", "\x37"]
+        col_label = ["\x31\xE2\x83\xA3",
+                     "\x32\xE2\x83\xA3",
+                     "\x33\xE2\x83\xA3",
+                     "\x34\xE2\x83\xA3",
+                     "\x35\xE2\x83\xA3",
+                     "\x36\xE2\x83\xA3",
+                     "\x37\xE2\x83\xA3"]
       else
         max_per_line = 10
         empty_space = ' '
@@ -182,6 +199,9 @@ module TwilioHelper
 
     count = 0
     for i in 0..data.length-1
+      if !row_label.empty? and i%max_per_line == 0
+        message += row_label[i/max_per_line]
+      end
 
       if data[i] == '0'
         message += empty_space
@@ -194,14 +214,18 @@ module TwilioHelper
       count += 1
 
       if count == max_per_line
-        message += row_label[i/max_per_line] + "\xE2\x83\xA3" + "\n"
+        message += "\n"
         count = 0
       end
 
     end
 
+    if !row_label.empty?
+      message += "\xF0\x9F\x86\x92"
+    end
+
     for i in 0..max_per_line-1
-      message += col_label[i]+"\xE2\x83\xA3"
+      message += col_label[i]
     end
 
 
@@ -210,11 +234,13 @@ module TwilioHelper
     end
   end
 
-  def clear_players(player, other_player)
+  def clear_players(game, player, other_player)
     player.set_game_id(nil)
     player.set_player_num(0)
     other_player.set_game_id(nil)
     other_player.set_player_num(0)
+
+    game.destroy
   end
 
 end

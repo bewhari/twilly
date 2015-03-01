@@ -32,9 +32,10 @@ class Game < ActiveRecord::Base
 
   def update_board(input)
 
+    @state = nil
     game = self.attributes['sel']
 
-    if game = 1 # tictactoe
+    if game == 1 # tictactoe
       @board = Tictactoe.new
       @board.setBoard(self.attributes['data'])
       @board.setPlayer(self.attributes['turn'])
@@ -51,14 +52,16 @@ class Game < ActiveRecord::Base
             self.update_attribute('data', @board.getBoard)
             self.set_turn(self.attributes['turn']%2 + 1)
           when 'win_lose'
+            self.update_attribute('data', @board.getBoard)
             @state = self.attributes['turn']
           else #draw
+            self.update_attribute('data', @board.getBoard)
             return
         end
       end
 
 
-    elsif game = 2 # connectfour
+    elsif game == 2 # connectfour
       @board = ConnectFour.new
       @board.setBoard(self.attributes['data'])
       @board.setPlayer(self.attributes['turn'])
@@ -75,8 +78,10 @@ class Game < ActiveRecord::Base
             self.update_attribute('data', @board.getBoard)
             self.set_turn(self.attributes['turn']%2 + 1)
           when 'win_lose'
+            self.update_attribute('data', @board.getBoard)
             @state = self.attributes['turn']
           else #draw
+            self.update_attribute('data', @board.getBoard)
             return
         end
       end
